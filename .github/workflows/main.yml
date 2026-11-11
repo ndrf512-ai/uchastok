@@ -19,21 +19,32 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Find and build Android project
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Android APK
         run: |
-          GRADLEW_PATH=$(find . -name gradlew -type f | head -n 1)
-          if [ -z "$GRADLEW_PATH" ]; then
-            echo "ERROR: gradlew not found in repository!"
-            exit 1
+          # Находим, где лежит build.gradle
+          BUILD_FILE=$(find . -name "build.gradle" -not -path "*/app/*" | head -n 1)
+          if [ -n "$BUILD_FILE" ]; then
+            cd "$(dirname "$BUILD_FILE")"
+          elif [ -d "android" ]; then
+            cd android
           fi
-          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
-          echo "Found Android project at: $PROJECT_DIR"
-          cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          
+          # Если есть gradlew, используем его, иначе используем системный gradle
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: uchastok-debug-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: "**/*.apk"
